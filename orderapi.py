@@ -1,34 +1,80 @@
 import requests
+import re
+def get_lyric_song(artist, song):
+    #Search the song_id
+    url_id = "https://genius-song-lyrics1.p.rapidapi.com/search/"
 
-def get_lyrics_from_genius(artist, title, api_key):
-    base_url = 'https://api.genius.com'
-    search_url = '/search'
-    
-    headers = {'Authorization': 'Bearer ' + api_key}
-    params = {'q': f'{artist} {title}'}
-    
-    response = requests.get(base_url + search_url, params=params, headers=headers)
+    querystring = {"q": f'{artist} {song}',"per_page":"10","page":"1"}
 
+    headers = {
+	    "X-RapidAPI-Key": "e14043395bmsh9164d69ed0c83c7p14d243jsn89be3b418aaf",
+	    "X-RapidAPI-Host": "genius-song-lyrics1.p.rapidapi.com"
+    }
+
+    response = requests.get(url_id, headers=headers, params=querystring)
     if response.status_code == 200:
         data = response.json()
-        hits = data.get('response', {}).get('hits', [])
-
+        hits = data.get('hits', [])
         if hits:
-            song_id = hits[0].get('result', {}).get('id')
-            lyrics_url = f'/songs/{song_id}'
-            response = requests.get(base_url + lyrics_url, headers=headers)
+            id_song = hits[0].get('result', {}).get('id')
+
+            #Get the lyric with the song_id
+            url_song = "https://genius-song-lyrics1.p.rapidapi.com/song/lyrics/"
+            lyrics_query = {"id": f'{id_song}',"text_format":"plain"}
+            response = requests.get(url_song, headers=headers, params=lyrics_query)
             
             if response.status_code == 200:
-                lyrics_data = response.json()
-                lyrics = lyrics_data.get('response', {}).get('song', {}).get('lyrics', {}).get('plain')
-                return lyrics
+                text_data = response.json()
+                lines = text_data.get('lyrics', {}).get('lyrics', {}).get('body', {}).get('plain')
+                lyrics = lines.split('\n')
+                lyrics_old = [line for line in lyrics if not re.match(r'^\[', line.strip())]
+                lyrics_new = '\n'.join(lyrics_old)
+
+                print(lyrics_new)
+                return lyrics_new
+    else:
+        data = response.json()
+        error = data.get('message')
+        print("El error obtenido es de tipo:", response.status_code)
+        print("Mensaje: " + error)
+        return None
+
 
     print('No se pudo obtener la letra desde Genius. Verifica tu clave de API y asegúrate de que la canción y el artista sean correctos.')
     return None
 
-def interleave_lyrics(artist, title, spanish_file, output_file, api_key):
-    header = f'{artist} - {title}'
-    english_lyrics = get_lyrics_from_genius(artist, title, api_key)
+def get_fullname_song(artist, song):
+    #Search the full_title
+    url_id = "https://genius-song-lyrics1.p.rapidapi.com/search/"
+
+    querystring = {"q": f'{artist} {song}',"per_page":"10","page":"1"}
+
+    headers = {
+	    "X-RapidAPI-Key": "e14043395bmsh9164d69ed0c83c7p14d243jsn89be3b418aaf",
+	    "X-RapidAPI-Host": "genius-song-lyrics1.p.rapidapi.com"
+    }
+
+    response = requests.get(url_id, headers=headers, params=querystring)
+    if response.status_code == 200:
+        data = response.json()
+        hits = data.get('hits', [])
+        if hits:
+            full_title = hits[0].get('result', {}).get('full_title')
+            print(full_title)
+            return full_title
+    else:
+        data = response.json()
+        error = data.get('message')
+        print("El error obtenido es de tipo:", response.status_code)
+        print("Mensaje: " + error)
+        return None
+
+    print('No se pudo obtener la letra desde Genius. Verifica tu clave de API y asegúrate de que la canción y el artista sean correctos.')
+    return None
+
+def interval_lines(name_artist, name_song, output_file, spanish_file):
+    header = get_fullname_song(name_artist, name_song)
+    english_lyrics = get_lyric_song(name_artist, name_song)
 
     if english_lyrics is not None:
         spanish_lines = []
@@ -52,22 +98,19 @@ def interleave_lyrics(artist, title, spanish_file, output_file, api_key):
         print('Se creó satisfactoriamente su documento')
     else:
         print('No se pudo obtener la letra de la canción desde la API.')
+        
 
-# Solicitar al usuario el nombre del artista y la canción
+# The user say the artist
 print("What's the name of the artist?")
-artist_song = input('>')
+name_artist = input('>')
+
+# The user say song
 print("What's the name of the song?")
-title_song = input('>')
+name_song = input('>')
 
-# Reemplazar 'TU_CLAVE_DE_API_AQUI' con tu clave de API de Genius
-api_key = 'daueY-wzu3AyaLNE4y13kNn2d8Z6UTOu5JO9w-F0bJxvD63cyH3mztVVJvTfQdmq'
+# The user say name of the ouput_file
+print('The name of your oupuy file is "lyrics_..."' )
+output_file = "lyrics_" + input('>') + ".txt"
 
-# Archivo de texto en español
 spanish_lyrics_file = 'lyrics_spanish.txt'
-
-# Archivo de texto de salida
-output_file = 'interleaved_lyrics.txt'
-
-# Obtener la letra desde Genius y realizar la intercalación
-interleave_lyrics(artist_song, title_song, spanish_lyrics_file, output_file, api_key)
-
+interval_lines(name_artist, name_song, output_file, spanish_lyrics_file)
